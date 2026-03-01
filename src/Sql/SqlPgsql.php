@@ -172,25 +172,38 @@ class SqlPgsql extends SqlBase
         $exec .= $extra;
         $exec .= (!$create_db && !$data_only ? ' --clean' : '');
 
+        if ($tables && $skip_tables) {
+            // Remove the skipped tables from the table selection.
+            $tables = array_diff($tables, $skip_tables);
+            if (!$tables) {
+                // If no tables are left, then we should skip to a schema only dump
+                // of the skipped tables.
+                $exec .= ' --schema-only';
+                $tables = $structure_tables;
+                $structure_tables = $skip_tables = [];
+            }
+        }
+
         if (!empty($tables)) {
             foreach ($tables as $table) {
                 $exec .= " --table=$table";
             }
-        } else {
-            foreach ($skip_tables as $table) {
-                $ignores[] = "--exclude-table=$table";
-            }
+        }
+        foreach ($skip_tables as $table) {
+            $ignores[] = "--exclude-table=$table";
+        }
+        if (!empty($ignores)) {
             $exec .= ' ' . implode(' ', $ignores);
-            // Run pg_dump again and append output if we need some structure only tables.
-            if (!empty($structure_tables)) {
-                $parens = true;
-                $schemaonlies = [];
-                foreach ($structure_tables as $table) {
-                    $schemaonlies[] = "--table=$table";
-                }
-                $exec .= " && pg_dump --schema-only " . implode(' ', $schemaonlies) . $extra;
-                $exec .= (!$create_db && !$data_only ? ' --clean' : '');
+        }
+        // Run pg_dump again and append output if we need some structure only tables.
+        if (!empty($structure_tables)) {
+            $parens = true;
+            $schemaonlies = [];
+            foreach ($structure_tables as $table) {
+                $schemaonlies[] = "--table=$table";
             }
+            $exec .= " && pg_dump --schema-only " . implode(' ', $schemaonlies) . $extra;
+            $exec .= (!$create_db && !$data_only ? ' --clean' : '');
         }
         return $parens ? "($exec)" : $exec;
     }

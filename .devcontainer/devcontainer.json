@@ -6,16 +6,20 @@
     "customizations": {
         "vscode": {
             "extensions": [
-                "mblode.twig-language-2",
+                "wongjn.php-sniffer",
+                "neilbrayfield.php-docblocker",
                 "bmewburn.vscode-intelephense-client",
                 "yahyaahmad.drupal-intellisense",
                 "andrewdavidblum.drupal-smart-snippets",
                 "coenraads.bracket-pair-colorizer",
-                "neilbrayfield.php-docblocker",
+                "mblode.twig-language-2",
                 "editorconfig.editorconfig",
                 "esbenp.prettier-vscode",
                 "dbaeumer.vscode-eslint",
-                "ms-vsliveshare.vsliveshare"
+                "ms-vsliveshare.vsliveshare",
+                "timonwong.shellcheck",
+                "rogalmic.bash-debug",
+                "xdebug.php-debug"
             ],
             "settings": {
                 "php.suggest.basic": false,

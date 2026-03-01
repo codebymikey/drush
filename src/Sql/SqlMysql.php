@@ -200,16 +200,18 @@ EOT;
         $structure_tables = $table_selection['structure'];
         $tables = $table_selection['tables'];
 
+        $exec = $this->dumpProgram();
+
         $ignores = [];
         $skip_tables  = array_merge($structure_tables, $skip_tables);
+
         $data_only = $this->getOption('data-only');
         // The ordered-dump option is only supported by MySQL for now.
         $ordered_dump = $this->getOption('ordered-dump');
 
-        $exec = $this->dumpProgram() . ' ';
         // mysqldump wants 'databasename' instead of 'database=databasename' for no good reason.
-        $only_db_name = str_replace('--database=', ' ', $this->creds());
-        $exec .= $only_db_name;
+        $only_db_name = str_replace('--database=', '', $this->creds());
+        $exec .= " $only_db_name";
 
         // We had --skip-add-locks here for a while to help people with insufficient permissions,
         // but removed it because it slows down the import a lot.  See http://drupal.org/node/1283978
@@ -225,21 +227,36 @@ EOT;
         }
         $exec .= $extra;
 
+        if (!empty($tables) && !empty($structure_tables)) {
+            // Remove the skipped tables from the table selection.
+            $tables = array_diff($tables, $structure_tables);
+            $structure_tables = array_diff($structure_tables, $table_selection['skip']);
+            if (!$tables) {
+                // If no tables are left, then we should switch to a no-data dump
+                // of the structured data tables.
+                $exec .= ' --no-data';
+                $tables = $structure_tables;
+                // Keep only the remaining tables that haven't been skipped. This'll always be empty.
+                $skip_tables = array_diff($table_selection['skip'], $table_selection['structure']);
+                $structure_tables = [];
+            }
+        }
+
         if (!empty($tables)) {
             $exec .= ' ' . implode(' ', $tables);
-        } else {
-            // Append the ignore-table options.
-            foreach ($skip_tables as $table) {
-                $ignores[] = '--ignore-table=' . $dbSpec['database'] . '.' . $table;
-                $parens = true;
-            }
+        }
+        $skip_tables = array_unique($skip_tables);
+        // Append the ignore-table options.
+        foreach ($skip_tables as $table) {
+            $ignores[] = '--ignore-table=' . $dbSpec['database'] . '.' . $table;
+        }
+        if (!empty($ignores)) {
             $exec .= ' ' . implode(' ', $ignores);
-
-            // Run mysqldump again and append output if we need some structure only tables.
-            if (!empty($structure_tables)) {
-                $exec .= " && " . $this->dumpProgram() . " " . $only_db_name . " --no-data $extra " . implode(' ', $structure_tables);
-                $parens = true;
-            }
+        }
+        // Run mysqldump again and append output if we need some structure only tables.
+        if (!empty($structure_tables)) {
+            $exec .= " && " . $this->dumpProgram() . " " . $only_db_name . " --no-data $extra " . implode(' ', $structure_tables);
+            $parens = true;
         }
         return $parens ? "($exec)" : $exec;
     }

@@ -45,6 +45,22 @@ class SqlDumpTest extends CommandUnishTestCase
         $expected = $this->dbDriver() == 'mysql' ? '--ignore-table=unish_dev.cache_discovery' : '--exclude-table=cache_discovery';
         $this->assertStringContainsString($expected, $this->getErrorOutput());
 
+        // In Drupal 9.1+, cache_discovery et. al. do not exist until after a cache rebuild.
+        $this->drush(CacheRebuildCommands::REBUILD, []);
+
+        // Test structure-tables implementation.
+        // $this->drush(SqlCommands::DUMP, [], array_merge($options, [], ['simulate' => null, 'structure-tables-list' => 'cache*']));
+        // $expected = $this->dbDriver() == 'mysql' ? '--ignore-table=unish_dev.cache_discovery' : '--exclude-table=cache_discovery';
+        // $this->assertStringContainsString($expected, $this->getErrorOutput());
+
+        //// In Drupal 9.1+, cache_discovery et. al. do not exist until after a cache rebuild.
+        //$this->drush(CacheRebuildCommands::REBUILD, []);
+
+        // Between cache_data, cache_default and cache_discovery.
+        $this->drush(SqlCommands::DUMP, [], array_merge($options, [], ['simulate' => null, 'tables-list' => 'cache_d*', 'structure-tables-list' => 'cache_d*', 'skip-tables-list' => 'cache_default']));
+        $expected = $this->dbDriver() == 'mysql' ? ' --no-data cachetags' : ' --no-data cachetags';
+        $this->assertStringEndsWith($expected, $this->getErrorOutput());
+
         // Test --extra-dump option
         if ($this->dbDriver() == 'mysql') {
             $this->drush(SqlCommands::DUMP, [], array_merge($options, [], ['extra-dump' => '--skip-add-drop-table']));
@@ -52,7 +68,6 @@ class SqlDumpTest extends CommandUnishTestCase
             $full_dump_file = file_get_contents($full_dump_file_path);
             $this->assertStringNotContainsString('DROP TABLE IF EXISTS', $full_dump_file);
         }
-
 
         // First, do a test without any aliases, and dump the whole database
         $this->drush(SqlCommands::DUMP, [], $options);
